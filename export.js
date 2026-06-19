@@ -478,8 +478,7 @@ class ExportEngine {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
-      doc.text(`Halaman ${i} dari ${pageCount}`, pageW / 2, 292, { align: 'center' });
-      doc.text('SAHABAT GURU MENGAJAR — Dibuat dengan AI', pageW / 2, 295, { align: 'center' });
+      doc.text(`Halaman ${i} dari ${pageCount}`, pageW / 2, 290, { align: 'center' });
     }
 
     const filename = `RPM_${(rpmDoc.formData?.mapel || 'dokumen').replace(/\s+/g, '_')}_${(rpmDoc.formData?.materi || '').replace(/\s+/g, '_').slice(0, 30)}.pdf`;
