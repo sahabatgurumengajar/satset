@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="description" content="SAHABAT GURU MENGAJAR — Platform Cerdas untuk menyusun Rencana Pelaksanaan Pembelajaran (RPM) secara otomatis, profesional, dan mendalam. Didukung Gemini AI.">
+  <meta name="keywords" content="RPM, rencana pembelajaran, AI, Kurikulum Merdeka, guru, pendidikan Indonesia">
+  <meta name="author" content="Andri Suwandi">
+  <meta property="og:title" content="Sahabat Guru Mengajar — AI RPM Generator">
+  <meta property="og:description" content="Platform Cerdas untuk menyusun RPM otomatis berbasis Kurikulum Merdeka">
+  <meta name="theme-color" content="#4FACFE">
+  <title>Sahabat Guru Mengajar — Platform Cerdas untuk Guru Indonesia</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     TOAST CONTAINER
+═══════════════════════════════════════════════════════════════ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════════════════
+     CONFIRM MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="confirm-modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <h3>Konfirmasi</h3>
+      <button class="modal-close" onclick="document.getElementById('confirm-modal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-message" style="color:var(--text-secondary);line-height:1.6"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="confirm-cancel">Batal</button>
+      <button class="btn btn-danger" id="confirm-ok">Ya, Lanjutkan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     RESET PASSWORD MODAL (Admin)
+═══════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="reset-password-modal">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <h3>🔑 Reset Password</h3>
+      <button class="modal-close" onclick="document.getElementById('reset-password-modal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Password Baru</label>
+        <input type="password" class="form-control" id="reset-pw-input" placeholder="Minimal 6 karakter">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('reset-password-modal').classList.add('hidden')">Batal</button>
+      <button class="btn btn-primary" id="reset-pw-confirm">Simpan Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: AUTH
+═══════════════════════════════════════════════════════════════ -->
+<div id="page-auth" class="app-page">
+  <div class="auth-container">
+    
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🎓</div>
+      <h1>Sahabat Guru Mengajar</h1>
+      <p>Platform Cerdas untuk Guru Indonesia</p>
+    </div>
+
+    <div class="auth-card">
+      <div style="text-align:center;padding:1.5rem 1.5rem 0.5rem">
+        <h2 style="color:white;font-size:1.25rem;font-weight:700;margin-bottom:0.25rem">Masuk ke Aplikasi</h2>
+        <p style="color:rgba(255,255,255,0.5);font-size:0.8rem">Gunakan akun yang didaftarkan oleh Administrator</p>
+      </div>
+
+      <!-- Login Form -->
+      <form class="auth-form" id="form-login" onsubmit="Auth.handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" id="login-email" placeholder="guru@sekolah.sch.id" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div style="position:relative">
+            <input type="password" class="form-control" id="login-password" placeholder="••••••••" required autocomplete="current-password" style="padding-right:3rem">
+            <button type="button" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:1rem" onclick="togglePw('login-password',this)">👁️</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-wide btn-lg" id="login-btn">
+          Masuk ke Aplikasi
+        </button>
+        <div class="auth-divider" style="margin:1.25rem 0"></div>
+        <p style="text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.4);line-height:1.6">
+          Belum punya akun? Hubungi administrator mendaftarkan email Anda.
+          <a href="https://wa.me/6285845429270" target="_blank" style="color:#00e676;font-weight:600;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:0.25rem;margin-left:0.25rem">
+            🟢 WhatsApp: 085845429270
+          </a>
+        </p>
+      </form>
+    </div>
+
+    <p style="text-align:center;color:rgba(255,255,255,0.3);font-size:0.75rem;margin-top:1.5rem">
+      "Menyusun Perencanaan Pembelajaran Mendalam — Lebih Cepat, Mudah, Profesional, dan Berkualitas."
+    </p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     PAGE: SETUP WIZARD (3 Langkah — TANPA API Key)
+═══════════════════════════════════════════════════════════════ -->
+<div id="page-wizard" class="hidden app-page">
+  <div class="wizard-container">
+    
+    <div style="text-align:center;margin-bottom:1.5rem">
+      <div style="width:56px;height:56px;background:var(--gradient-primary);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 0.875rem;font-size:1.5rem;box-shadow:var(--shadow-primary)">🎓</div>
+      <h2 style="color:white;font-size:1.125rem;font-weight:700">Setup Profil — 3 Langkah Mudah</h2>
+      <p style="color:rgba(255,255,255,0.5);font-size:0.82rem">Dilakukan sekali. AI langsung siap digunakan setelah selesai.</p>
+    </div>
+
+    <!-- Step Indicators (3 step) -->
+    <div class="wizard-steps" style="justify-content:center">
+      <div class="wizard-step-dot">
+        <div class="wizard-dot active" id="step-dot-1">1</div>
+      </div>
+      <div class="wizard-line" id="step-line-1"></div>
+      <div class="wizard-step-dot">
+        <div class="wizard-dot" id="step-dot-2">2</div>
+      </div>
+      <div class="wizard-line" id="step-line-2"></div>
+      <div class="wizard-step-dot">
+        <div class="wizard-dot" id="step-dot-3">3</div>
+      </div>
+    </div>
+
+    <div class="wizard-card">
+      <div id="wizard-content">
+        <!-- Rendered by Wizard.renderStep() -->
+      </div>
+      <div class="wizard-nav">
+        <button class="btn btn-ghost" id="wizard-prev" onclick="Wizard.prev()" style="color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.2)">← Kembali</button>
+        <button class="btn btn-primary" id="wizard-next" onclick="Wizard.next()">Lanjut →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     APP LAYOUT
+═══════════════════════════════════════════════════════════════ -->
+<div id="app-layout-wrapper" class="hidden">
+  <div id="app-layout">
+
+    <!-- ── SIDEBAR ────────────────────────────────────────── -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">🎓</div>
+        <div class="sidebar-brand-text">
+          <h2>Sahabat Guru</h2>
+          <span>Platform AI Pendidikan</span>
+        </div>
+      </div>
+
+      <div class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-label">Utama</div>
+          <button class="nav-item active" data-page="dashboard" onclick="Router.navigate('dashboard')">
+            <span class="nav-icon">🏠</span> Dashboard
+          </button>
+          <button class="nav-item" data-page="generator" onclick="Router.navigate('generator')">
+            <span class="nav-icon">✨</span> Buat RPM
+          </button>
+          <button class="nav-item" data-page="history" onclick="Router.navigate('history')">
+            <span class="nav-icon">📂</span> Riwayat RPM
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">Akun</div>
+          <button class="nav-item" data-page="settings" onclick="Router.navigate('settings')">
+            <span class="nav-icon">⚙️</span> Pengaturan
+          </button>
+          <button class="nav-item hidden" data-page="admin" id="nav-admin" onclick="Router.navigate('admin')">
+            <span class="nav-icon">👑</span> Admin Panel
+          </button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-label">Info</div>
+          <button class="nav-item" onclick="showAboutModal()">
+            <span class="nav-icon">ℹ️</span> Tentang Aplikasi
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user" onclick="Router.navigate('settings')">
+          <div class="user-avatar"><span class="user-avatar-text">GU</span></div>
+          <div class="user-info">
+            <div class="user-name user-name-display">Nama Guru</div>
+            <div class="user-email user-email-display">email@guru.com</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-wide btn-sm" onclick="Auth.logout()" style="margin-top:0.5rem;justify-content:flex-start;gap:0.5rem">
+          🚪 Keluar
+        </button>
+      </div>
+    </nav>
+
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="UI.closeSidebar()"></div>
+
+    <!-- ── MAIN CONTENT ───────────────────────────────────── -->
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" onclick="UI.openSidebar()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div>
+            <div class="page-title" id="header-page-title">Dashboard</div>
+            <div class="page-subtitle" id="header-page-subtitle" style="display:none"></div>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="theme-toggle" onclick="ThemeManager.toggle()" title="Ganti Tema">
+            <span id="theme-icon">🌙</span>
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="Router.navigate('generator')">
+            ✨ Buat RPM
+          </button>
+        </div>
+      </header>
+
+      <main class="page-content" id="page-content">
+
+        <!-- ── DASHBOARD ─────────────────────────────────── -->
+        <div id="page-dashboard" class="app-page">
+          <!-- Hero -->
+          <div class="dashboard-hero">
+            <div class="hero-text">
+              <div class="hero-greeting" id="hero-greeting">Selamat datang! 👋</div>
+              <div style="font-size:1.5rem;font-weight:800;color:white;margin-bottom:0.5rem">Platform AI Terbaik untuk Guru Indonesia</div>
+              <div id="hero-school" style="color:rgba(255,255,255,0.7);font-size:0.9rem">
+                🏫 <span class="school-name-display">Nama Sekolah</span>
+              </div>
+              <!-- AI Status -->
+              <div id="ai-status-indicator" style="margin-top:0.75rem;font-size:0.82rem"></div>
+            </div>
+            <div class="hero-action">
+              <button class="hero-cta" onclick="Router.navigate('generator')">✨ Buat RPM Baru</button>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue">📋</div>
+              <div class="stat-info">
+                <div class="stat-value" id="stat-total-rpm">0</div>
+                <div class="stat-label">Total RPM Dibuat</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green">📅</div>
+              <div class="stat-info">
+                <div class="stat-value" id="stat-this-month">0</div>
+                <div class="stat-label">RPM Bulan Ini</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon purple">📥</div>
+              <div class="stat-info">
+                <div class="stat-value" id="stat-downloads">0</div>
+                <div class="stat-label">Total Download</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon orange">⚡</div>
+              <div class="stat-info">
+                <div class="stat-value" style="font-size:1.1rem">5 Tahap</div>
+                <div class="stat-label">Generasi Mendalam + QC</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent RPM -->
+          <div class="card card-elevated">
+            <div class="card-header">
+              <div>
+                <h3 style="font-size:1rem;font-weight:700">📋 RPM Terbaru</h3>
+                <p style="font-size:0.78rem;color:var(--text-muted)">Dokumen RPM yang baru saja dibuat</p>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="Router.navigate('history')">Lihat Semua →</button>
+            </div>
+            <div class="card-body" style="padding:1rem">
+              <div id="recent-rpm-list" class="rpm-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── GENERATOR ──────────────────────────────────── -->
+        <div id="page-generator" class="app-page hidden">
+          <div class="generator-layout">
+            
+            <!-- Form Panel -->
+            <div class="form-panel">
+              <div class="form-panel-header">
+                <span>✨</span>
+                <h3>Form RPM</h3>
+              </div>
+              <div class="form-panel-body">
+
+                <!-- Smart Template Indicator -->
+                <div id="smart-template-indicator" class="hidden" style="background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(79,172,254,0.08));border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:0.75rem;margin-bottom:1rem;font-size:0.8rem;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+                </div>
+
+                <div style="font-size:0.78rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.875rem">📚 Data Pembelajaran</div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Fase</label>
+                    <select class="form-control" id="gen-fase">
+                      <option value="A">Fase A</option><option value="B">Fase B</option><option value="C">Fase C</option>
+                      <option value="D" selected>Fase D</option><option value="E">Fase E</option><option value="F">Fase F</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Kelas</label>
+                    <select class="form-control" id="gen-kelas">
+                      <option value="1">Kelas 1</option><option value="2">Kelas 2</option><option value="3">Kelas 3</option>
+                      <option value="4">Kelas 4</option><option value="5">Kelas 5</option><option value="6">Kelas 6</option>
+                      <option value="7" selected>Kelas 7</option><option value="8">Kelas 8</option><option value="9">Kelas 9</option>
+                      <option value="10">Kelas 10</option><option value="11">Kelas 11</option><option value="12">Kelas 12</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Semester</label>
+                    <select class="form-control" id="gen-semester">
+                      <option value="1">Semester 1</option><option value="2">Semester 2</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Alokasi Waktu <span class="required">*</span></label>
+                    <input type="text" class="form-control" id="gen-waktu" placeholder="Cth: 2×40 menit">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Mata Pelajaran</label>
+                  <select class="form-control" id="gen-mapel" onchange="Generator.onMapelChange(this.value)">
+                    <option value="Matematika">Matematika</option>
+                    <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                    <option value="Bahasa Inggris">Bahasa Inggris</option>
+                    <option value="IPA">IPA</option><option value="IPS">IPS</option>
+                    <option value="PPKn">PPKn</option><option value="Seni Budaya">Seni Budaya</option>
+                    <option value="Pendidikan Jasmani">Pendidikan Jasmani</option>
+                    <option value="Agama Islam">Agama Islam</option><option value="Agama Kristen">Agama Kristen</option>
+                    <option value="Agama Katolik">Agama Katolik</option><option value="Agama Hindu">Agama Hindu</option>
+                    <option value="Agama Buddha">Agama Buddha</option><option value="Prakarya">Prakarya</option>
+                    <option value="Informatika">Informatika</option><option value="Ekonomi">Ekonomi</option>
+                    <option value="Geografi">Geografi</option><option value="Sejarah">Sejarah</option>
+                    <option value="Sosiologi">Sosiologi</option><option value="Fisika">Fisika</option>
+                    <option value="Kimia">Kimia</option><option value="Biologi">Biologi</option>
+                    <option value="Bahasa Jawa">Bahasa Jawa</option><option value="Bahasa Sunda">Bahasa Sunda</option>
+                    <option value="Bahasa Bali">Bahasa Bali</option>
+                    <option value="Bahasa Arab">Bahasa Arab</option>
+                    <option value="Bahasa Mandarin">Bahasa Mandarin</option>
+                    <option value="Bahasa Daerah">Bahasa Daerah</option>
+                    <option value="Bimbingan Konseling">Bimbingan Konseling</option>
+                    <option value="Tematik">Tematik</option>
+                    <option disabled style="color:var(--text-muted);font-size:0.8rem">──────────────</option>
+                    <option value="__lainnya__">✏️ Lainnya (Tulis Sendiri)...</option>
+                  </select>
+                  <!-- Input kustom — muncul saat pilih "Lainnya" -->
+                  <div id="gen-mapel-custom-wrap" class="hidden" style="margin-top:0.5rem">
+                    <input type="text" class="form-control" id="gen-mapel-custom"
+                      placeholder="Tulis nama mata pelajaran Anda..." maxlength="80"
+                      style="border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,172,254,0.12)">
+                    <span class="form-hint">💡 Contoh: Muatan Lokal, Tari Tradisional, Pendidikan Karakter, dsb.</span>
+                  </div>
+                </div>
+
+
+                <div class="form-group">
+                  <label class="form-label">Materi Pokok <span class="required">*</span></label>
+                  <input type="text" class="form-control" id="gen-materi" placeholder="Contoh: Persamaan Linear Dua Variabel">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Capaian Pembelajaran <span style="color:var(--text-muted)">(Opsional)</span></label>
+                  <textarea class="form-control" id="gen-cp" placeholder="Kosongkan agar AI menyesuaikan otomatis dengan Kurikulum Merdeka..." style="min-height:70px"></textarea>
+                  <span class="form-hint">AI akan merujuk CP resmi Kemdikbud jika dikosongkan.</span>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Tujuan Pembelajaran <span style="color:var(--text-muted)">(Opsional)</span></label>
+                  <textarea class="form-control" id="gen-tp" placeholder="AI akan merumuskan dalam format SMART & ABCD jika dikosongkan..." style="min-height:70px"></textarea>
+                </div>
+
+                <!-- Model Pembelajaran -->
+                <div style="font-size:0.78rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.75rem">🧠 Model Pembelajaran <span class="required">*</span></div>
+                <div class="model-grid">
+                  <div class="model-chip" data-model="Problem Based Learning (PBL)" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">PBL</div>
+                  <div class="model-chip" data-model="Project Based Learning (PjBL)" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">PjBL</div>
+                  <div class="model-chip" data-model="Contextual Teaching and Learning (CTL)" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">CTL</div>
+                  <div class="model-chip" data-model="Discovery Learning" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Discovery Learning</div>
+                  <div class="model-chip" data-model="Inquiry Learning" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Inquiry Learning</div>
+                  <div class="model-chip" data-model="Cooperative Learning" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Cooperative Learning</div>
+                  <div class="model-chip" data-model="STEM" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">STEM</div>
+                  <div class="model-chip" data-model="STEAM" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">STEAM</div>
+                  <div class="model-chip" data-model="Scientific Learning (5M)" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Scientific (5M)</div>
+                  <div class="model-chip" data-model="Problem Solving" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Problem Solving</div>
+                  <div class="model-chip" data-model="Flipped Classroom" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Flipped Classroom</div>
+                  <div class="model-chip" data-model="Think Pair Share" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Think Pair Share</div>
+                  <div class="model-chip" data-model="Group Investigation" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Group Investigation</div>
+                  <div class="model-chip" data-model="Experiential Learning" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Experiential Learning</div>
+                  <div class="model-chip" data-model="Blended Learning" onclick="Generator.selectModel(this.dataset.model);this.closest('.model-grid').querySelectorAll('.model-chip').forEach(c=>c.classList.remove('selected'));this.classList.add('selected')">Blended Learning</div>
+                </div>
+
+                <!-- Generate Button -->
+                <div style="margin-top:1.5rem;display:flex;flex-direction:column;gap:0.625rem">
+                  <button class="btn btn-primary btn-wide btn-lg" id="gen-btn" onclick="Generator.generate()">
+                    🤖 Generate RPM dengan AI
+                  </button>
+                  <button class="btn btn-danger btn-wide hidden" id="stop-btn" onclick="Generator.stopGeneration()">
+                    ⏹ Hentikan Proses
+                  </button>
+                </div>
+
+                <!-- Info Box -->
+                <div style="margin-top:1rem;padding:0.875rem;background:var(--primary-light);border-radius:var(--radius-sm);font-size:0.78rem;color:var(--text-secondary);line-height:1.7">
+                  <div style="font-weight:700;color:var(--primary);margin-bottom:0.3rem">🤖 Proses Generasi 5 Tahap:</div>
+                  <div>1. Analisis konteks pembelajaran</div>
+                  <div>2. Desain tujuan & pedagogis</div>
+                  <div>3. Pengalaman belajar mendalam</div>
+                  <div>4. Asesmen autentik</div>
+                  <div>5. Quality check & finalisasi ✅</div>
+                </div>
+
+                <!-- Auto-save indicator -->
+                <div id="autosave-indicator" style="margin-top:0.625rem;font-size:0.75rem;color:var(--text-muted);text-align:center;opacity:0;transition:opacity 0.5s"></div>
+              </div>
+            </div>
+
+            <!-- Result Panel -->
+            <div class="result-panel">
+              <div class="result-toolbar" id="result-toolbar">
+                <span style="font-size:0.85rem;color:var(--text-muted)">Hasil RPM akan muncul di sini</span>
+                <div class="result-toolbar-actions"></div>
+              </div>
+              <div class="result-body" id="result-body">
+                <div class="empty-state">
+                  <div style="font-size:4rem;margin-bottom:1rem">📄</div>
+                  <h3>Siap Membuat RPM</h3>
+                  <p style="color:var(--text-muted)">Isi form di sebelah kiri dan klik "Generate RPM"</p>
+                  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;margin-top:1rem">
+                    <span class="badge badge-primary">🤖 Gemini 2.5 Pro</span>
+                    <span class="badge badge-success">✅ Quality Check Otomatis</span>
+                    <span class="badge badge-neutral">💾 Auto-Save 30 Detik</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── HISTORY ─────────────────────────────────────── -->
+        <div id="page-history" class="app-page hidden">
+          <div class="history-filter" id="history-filter">
+            <button class="filter-chip active" onclick="filterHistory(this,'')">Semua</button>
+            <button class="filter-chip" onclick="filterHistory(this,'Matematika')">Matematika</button>
+            <button class="filter-chip" onclick="filterHistory(this,'Bahasa Indonesia')">Bhs. Indonesia</button>
+            <button class="filter-chip" onclick="filterHistory(this,'IPA')">IPA</button>
+            <button class="filter-chip" onclick="filterHistory(this,'IPS')">IPS</button>
+            <button class="filter-chip" onclick="filterHistory(this,'Bahasa Inggris')">Bhs. Inggris</button>
+          </div>
+          <div class="rpm-grid" id="history-list"></div>
+        </div>
+
+        <!-- ── SETTINGS ────────────────────────────────────── -->
+        <!-- Tidak ada API Key di sini. Pengaturan murni tentang profil & tampilan. -->
+        <div id="page-settings" class="app-page hidden">
+          <div class="settings-grid">
+
+            <!-- Identitas Sekolah -->
+            <div class="settings-section">
+              <div class="settings-section-header">
+                <div class="settings-section-icon">🏫</div>
+                <div>
+                  <h3>Identitas Sekolah</h3>
+                  <p style="font-size:0.75rem;color:var(--text-muted)">Data sekolah untuk header RPM</p>
+                </div>
+              </div>
+              <div class="settings-section-body">
+                <div class="form-group">
+                  <label class="form-label">Logo Sekolah</label>
+                  <div style="display:flex;align-items:center;gap:1rem">
+                    <img id="s-logo-preview" src="" class="hidden" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:1px solid var(--border)">
+                    <button class="btn btn-ghost btn-sm" onclick="Settings.changeLogo()">📁 Ganti Logo</button>
+                    <input type="file" id="s-logo-input" accept="image/*" style="display:none" onchange="Settings.handleLogoChange(event)">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nama Sekolah</label>
+                  <input type="text" class="form-control" id="s-nama-sekolah" placeholder="Nama sekolah">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">NPSN</label>
+                    <input type="text" class="form-control" id="s-npsn" placeholder="Opsional">
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Kota/Kabupaten</label>
+                    <input type="text" class="form-control" id="s-kota" placeholder="Singkawang">
+                  </div>
+                </div>
+                <div class="form-group" style="margin-top:0.75rem">
+                  <label class="form-label">Alamat Sekolah</label>
+                  <textarea class="form-control" id="s-alamat" style="min-height:70px" placeholder="Alamat lengkap"></textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Telepon</label>
+                    <input type="text" class="form-control" id="s-telepon" placeholder="Opsional">
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Email Sekolah</label>
+                    <input type="email" class="form-control" id="s-email-sekolah" placeholder="Opsional">
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-wide" onclick="Settings.saveSchool()" style="margin-top:1.25rem">💾 Simpan Data Sekolah</button>
+              </div>
+            </div>
+
+            <!-- Identitas Guru & KepSek -->
+            <div class="settings-section">
+              <div class="settings-section-header">
+                <div class="settings-section-icon">👤</div>
+                <div>
+                  <h3>Identitas Guru & Kepala Sekolah</h3>
+                  <p style="font-size:0.75rem;color:var(--text-muted)">Data untuk tanda tangan RPM</p>
+                </div>
+              </div>
+              <div class="settings-section-body">
+                <div class="form-group">
+                  <label class="form-label">Nama Lengkap Guru</label>
+                  <input type="text" class="form-control" id="s-nama-guru" placeholder="Nama guru beserta gelar">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">NIP Guru</label>
+                  <input type="text" class="form-control" id="s-nip-guru" placeholder="Opsional">
+                </div>
+                <div class="form-group" style="margin-top:0.75rem">
+                  <label class="form-label">Nama Kepala Sekolah</label>
+                  <input type="text" class="form-control" id="s-nama-kepsek" placeholder="Nama kepsek beserta gelar">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">NIP Kepala Sekolah</label>
+                  <input type="text" class="form-control" id="s-nip-kepsek" placeholder="Opsional">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;margin-top:0.75rem">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Fase</label>
+                    <select class="form-control" id="s-fase">
+                      <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+                      <option value="D">D</option><option value="E">E</option><option value="F">F</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Kelas</label>
+                    <select class="form-control" id="s-kelas">
+                      <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                      <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                      <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                      <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Mapel</label>
+                    <input type="text" class="form-control" id="s-mapel" placeholder="Mapel">
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-wide" onclick="Settings.saveGuru()" style="margin-top:1.25rem">💾 Simpan Data Guru</button>
+              </div>
+            </div>
+
+            <!-- Keamanan Akun -->
+            <div class="settings-section">
+              <div class="settings-section-header">
+                <div class="settings-section-icon">🔑</div>
+                <div>
+                  <h3>Keamanan Akun</h3>
+                  <p style="font-size:0.75rem;color:var(--text-muted)">Ubah password login Anda</p>
+                </div>
+              </div>
+              <div class="settings-section-body">
+                <div class="form-group">
+                  <label class="form-label">Email Anda</label>
+                  <input type="email" class="form-control" id="s-user-email" readonly disabled style="background:var(--bg-input);opacity:0.7;cursor:not-allowed">
+                  <span class="form-hint">Email tidak dapat diubah demi keamanan aplikasi.</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Password Baru</label>
+                  <div style="position:relative">
+                    <input type="password" class="form-control" id="s-user-password" placeholder="Masukkan password baru (min. 6 karakter)">
+                    <button type="button" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer" onclick="togglePw('s-user-password',this)">👁️</button>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-wide" onclick="Settings.changePassword()" style="margin-top:1rem">🔒 Ubah Password</button>
+              </div>
+            </div>
+
+            <!-- Tampilan -->
+            <div class="settings-section">
+              <div class="settings-section-header">
+                <div class="settings-section-icon">🎨</div>
+                <div>
+                  <h3>Tampilan</h3>
+                  <p style="font-size:0.75rem;color:var(--text-muted)">Mode terang atau gelap</p>
+                </div>
+              </div>
+              <div class="settings-section-body">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                  <div id="theme-light-card" class="card" style="padding:1.25rem;cursor:pointer;border:2px solid var(--primary);text-align:center" onclick="ThemeManager.apply('light');db.saveSettings(AppState.currentUser.id,{theme:'light'})">
+                    <div style="font-size:2rem;margin-bottom:0.5rem">☀️</div>
+                    <div style="font-weight:600;font-size:0.9rem">Light Mode</div>
+                  </div>
+                  <div id="theme-dark-card" class="card" style="padding:1.25rem;cursor:pointer;border:1.5px solid var(--border);text-align:center" onclick="ThemeManager.apply('dark');db.saveSettings(AppState.currentUser.id,{theme:'dark'})">
+                    <div style="font-size:2rem;margin-bottom:0.5rem">🌙</div>
+                    <div style="font-weight:600;font-size:0.9rem">Dark Mode</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── ADMIN ───────────────────────────────────────── -->
+        <div id="page-admin" class="app-page hidden">
+          <div class="admin-header">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.375rem">
+                <h2 style="color:white;font-size:1.25rem;font-weight:800">Panel Administrator</h2>
+                <span class="admin-badge">ADMIN</span>
+              </div>
+              <p style="color:rgba(255,255,255,0.6);font-size:0.82rem">Kelola pengguna, pantau platform, dan konfigurasi AI</p>
+            </div>
+          </div>
+
+          <!-- Admin Stats -->
+          <div class="stats-grid" style="margin-bottom:1.5rem">
+            <div class="stat-card">
+              <div class="stat-icon blue">👥</div>
+              <div class="stat-info">
+                <div class="stat-value" id="admin-total-users">0</div>
+                <div class="stat-label">Total Pengguna</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green">✅</div>
+              <div class="stat-info">
+                <div class="stat-value" id="admin-active-users">0</div>
+                <div class="stat-label">Pengguna Aktif</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon purple">📋</div>
+              <div class="stat-info">
+                <div class="stat-value" id="admin-total-rpm">0</div>
+                <div class="stat-label">Total RPM Platform</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon orange">📅</div>
+              <div class="stat-info">
+                <div class="stat-value" id="admin-rpm-month">0</div>
+                <div class="stat-label">RPM Bulan Ini</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ KONFIGURASI AI (ADMIN ONLY) ═══ -->
+          <!-- Pengguna biasa TIDAK pernah melihat bagian ini -->
+          <div class="card card-elevated" style="margin-bottom:1.5rem">
+            <div class="card-header">
+              <div>
+                <h3 style="font-size:1rem;font-weight:700">🤖 Konfigurasi AI — Gemini API</h3>
+                <p style="font-size:0.78rem;color:var(--text-muted)">API Key ini digunakan oleh SEMUA pengguna. Pengguna tidak perlu mengisi apapun.</p>
+              </div>
+              <div id="admin-api-status"></div>
+            </div>
+            <div class="card-body" style="padding:1.25rem">
+              <div style="background:var(--primary-light);border:1px solid rgba(79,172,254,0.2);border-radius:var(--radius-sm);padding:0.875rem;margin-bottom:1.125rem;font-size:0.82rem;color:var(--text-secondary);line-height:1.7">
+                <div style="font-weight:700;color:var(--primary);margin-bottom:0.25rem">📋 Cara mendapatkan API Key (Gratis):</div>
+                <div>1. Buka <a href="https://aistudio.google.com" target="_blank" style="color:var(--primary);font-weight:600">aistudio.google.com</a></div>
+                <div>2. Login dengan akun Google</div>
+                <div>3. Klik <strong>Get API Key</strong> → <strong>Create API Key</strong></div>
+                <div>4. Salin dan tempel di kolom di bawah ini</div>
+                <div style="margin-top:0.5rem;color:var(--success)">✅ API Key yang sama digunakan untuk semua guru yang login.</div>
+              </div>
+              <div style="display:flex;gap:0.75rem;align-items:flex-end">
+                <div style="flex:1">
+                  <label class="form-label">Gemini API Key</label>
+                  <div style="position:relative">
+                    <input type="password" class="form-control" id="admin-api-key-input" placeholder="AIzaSy... (tempel API Key di sini)">
+                    <button type="button" style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer" onclick="const i=document.getElementById('admin-api-key-input');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🙈'">👁️</button>
+                  </div>
+                  <div id="admin-api-key" style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem"></div>
+                </div>
+                <button class="btn btn-primary" onclick="Admin.saveApiKey()" style="height:48px;padding:0 1.25rem;white-space:nowrap">
+                  💾 Simpan API Key
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tambah Pengguna Baru (Admin Only) -->
+          <div class="card card-elevated" style="margin-bottom:1.5rem">
+            <div class="card-header">
+              <div>
+                <h3 style="font-size:1rem;font-weight:700">➕ Tambah Pengguna Baru</h3>
+                <p style="font-size:0.78rem;color:var(--text-muted)">Daftarkan akun guru baru secara manual</p>
+              </div>
+            </div>
+            <div class="card-body" style="padding:1.25rem">
+              <form id="admin-add-user-form" onsubmit="Admin.addUser(event)">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;align-items:flex-end">
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Nama Lengkap Guru</label>
+                    <input type="text" class="form-control" id="admin-new-name" placeholder="Nama Lengkap beserta gelar" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" id="admin-new-email" placeholder="guru@sekolah.sch.id" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Password</label>
+                    <div style="position:relative">
+                      <input type="password" class="form-control" id="admin-new-password" placeholder="Minimal 6 karakter" required style="padding-right:2.5rem">
+                      <button type="button" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer" onclick="togglePw('admin-new-password',this)">👁️</button>
+                    </div>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top:1rem;height:42px;display:inline-flex;align-items:center;gap:0.5rem">
+                  👤 Daftarkan Pengguna Baru
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Users Table -->
+          <div class="card card-elevated">
+            <div class="card-header">
+              <div>
+                <h3 style="font-size:1rem;font-weight:700">👥 Manajemen Pengguna</h3>
+                <p style="font-size:0.78rem;color:var(--text-muted)">Kelola semua akun guru</p>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="Admin.renderUsersTable()">🔄 Refresh</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div class="data-table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Nama & Email</th>
+                      <th>Terdaftar</th>
+                      <th>Status</th>
+                      <th>Role</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-users-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+
+      <footer class="app-footer">
+        <div class="footer-title">🎓 Sahabat Guru Mengajar</div>
+        <div class="footer-creator">Dibuat dengan ❤️ oleh <strong>Sahabat Guru Mengajar</strong></div>
+        <div class="footer-tagline">"Menyusun Perencanaan Pembelajaran Mendalam — Lebih Cepat, Mudah, Profesional, Berkualitas."</div>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT MODAL -->
+<div class="modal-overlay hidden" id="about-modal">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <h3>Tentang Aplikasi</h3>
+      <button class="modal-close" onclick="document.getElementById('about-modal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <div style="font-size:3.5rem;margin-bottom:0.875rem">🎓</div>
+      <h2 style="font-size:1.375rem;margin-bottom:0.25rem">Sahabat Guru Mengajar</h2>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.25rem">Platform Cerdas untuk Guru Indonesia</p>
+      <div style="background:var(--bg-input);border-radius:var(--radius);padding:1.25rem;text-align:left;font-size:0.85rem;line-height:1.8;margin-bottom:1.25rem">
+        <div><strong>🤖 AI Engine:</strong> Google Gemini 2.5 Pro / Flash</div>
+        <div><strong>🔑 API Management:</strong> Dikelola admin — pengguna tidak perlu isi API Key</div>
+        <div><strong>📋 Generasi:</strong> 5 Tahap + Quality Check Otomatis</div>
+        <div><strong>💾 Auto-Save:</strong> Draft tersimpan setiap 30 detik</div>
+        <div><strong>✨ Smart Template:</strong> Form terisi otomatis dari RPM sebelumnya</div>
+        <div><strong>📄 Export:</strong> PDF & Microsoft Word</div>
+        <div><strong>👨‍💻 Developer:</strong> Sahabat Guru Mengajar</div>
+      </div>
+      <p style="font-style:italic;color:var(--text-muted);font-size:0.82rem;line-height:1.6">
+        "Menyusun Perencanaan Pembelajaran Mendalam — Lebih Cepat, Mudah, Profesional, Berkualitas."
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS — Urutan wajib: db → ai-engine → export → app -->
+<script src="db.js"></script>
+<script src="ai-engine.js"></script>
+<script src="export.js"></script>
+<script src="app.js"></script>
+
+<script>
+// ─── Tiny Helper Functions (tersedia global) ─────────────────────────────────
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tab-login')?.classList.toggle('active', isLogin);
+  document.getElementById('tab-register')?.classList.toggle('active', !isLogin);
+  document.getElementById('form-login')?.classList.toggle('hidden', !isLogin);
+  document.getElementById('form-register')?.classList.toggle('hidden', isLogin);
+}
+function togglePw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+}
+function filterHistory(btn, mapel) {
+  document.querySelectorAll('#history-filter .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  RPMHistory.filterByMapel(mapel);
+}
+function showAboutModal() {
+  document.getElementById('about-modal').classList.remove('hidden');
+}
+</script>
+
+</body>
+</html>
