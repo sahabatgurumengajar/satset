@@ -1345,14 +1345,49 @@ const Admin = {
     this.renderUsersTable();
   },
 
-  saveApiKey() {
-    const newKey = document.getElementById('admin-api-key-input').value.trim();
+  async saveApiKey() {
+    const inputEl = document.getElementById('admin-api-key-input');
+    const newKey = inputEl.value.trim();
     if (!newKey) { UI.toast('Masukkan API Key terlebih dahulu.', 'error'); return; }
-    if (!newKey.startsWith('AIza')) { UI.toast('Format API Key tidak valid. Harus diawali "AIza..."', 'warning'); return; }
-    db.saveSharedApiKey(newKey);
-    document.getElementById('admin-api-key-input').value = '';
-    UI.toast('API Key berhasil disimpan! Semua pengguna kini dapat menggunakan AI. 🎉', 'success', 5000);
-    this.render();
+
+    // Validasi panjang
+    if (newKey.length < 20) {
+      UI.toast('API Key terlalu pendek. Panjang minimal 20 karakter.', 'warning');
+      return;
+    }
+
+    // Validasi prefix (AIza atau AQ)
+    if (!newKey.startsWith('AIza') && !newKey.startsWith('AQ')) {
+      UI.toast('Format API Key tidak valid. Harus diawali "AIza" atau "AQ".', 'warning');
+      return;
+    }
+
+    // Dapatkan button untuk loading state
+    const btn = document.querySelector('button[onclick="Admin.saveApiKey()"]');
+    const originalText = btn ? btn.innerHTML : '💾 Simpan API Key';
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> Memverifikasi...';
+    }
+
+    UI.toast('Sedang memverifikasi API Key ke Google Gemini...', 'info');
+
+    const verification = await aiEngine.testApiKey(newKey);
+
+    if (verification.success) {
+      db.saveSharedApiKey(newKey);
+      inputEl.value = '';
+      UI.toast('API Key valid dan berhasil disimpan! Semua pengguna kini dapat menggunakan AI. 🎉', 'success', 5000);
+      await this.render();
+    } else {
+      UI.toast(`Verifikasi Gagal: ${verification.message}`, 'error', 6000);
+    }
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   },
 
   renderUsersTable() {

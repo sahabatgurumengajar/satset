@@ -392,6 +392,27 @@ OUTPUT FORMAT JSON (hasilkan HANYA JSON valid, tanpa teks lain sebelum/sesudah):
     this.abortController = null;
   }
 
+  async testApiKey(apiKey) {
+    const url = `${this.baseURL}/${this.fallbackModel}:generateContent?key=${apiKey}`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Ping' }] }],
+          generationConfig: { maxOutputTokens: 5 },
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e?.error?.message || `HTTP ${res.status}`);
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  }
+
   parseRPMJSON(rawText) {
     try {
       let text = rawText.trim();
