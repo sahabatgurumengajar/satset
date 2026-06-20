@@ -87,7 +87,7 @@ const UI = {
     document.querySelectorAll('.user-name-display').forEach(el => el.textContent = profile?.namaGuru || user.namaLengkap || 'Pengguna');
     document.querySelectorAll('.user-email-display').forEach(el => el.textContent = user.email);
     document.querySelectorAll('.school-name-display').forEach(el => el.textContent = profile?.namaSekolah || 'Sekolah belum diatur');
-    if (db.isAdmin(user.email)) document.getElementById('nav-admin')?.classList.remove('hidden');
+    if (user.role === 'admin') document.getElementById('nav-admin')?.classList.remove('hidden');
   },
 
   updatePageTitle(title, subtitle = '') {
@@ -138,6 +138,39 @@ const ThemeManager = {
 // ─── Auth Controller ────────────────────────────────────────────────────────
 const Auth = {
   init() {
+    const rawSession = localStorage.getItem('auth_user');
+    if (rawSession) {
+      let isCorrupted = false;
+      let userObj = null;
+      try {
+        userObj = JSON.parse(rawSession);
+        if (!userObj || !userObj.id || !userObj.nama || !userObj.email || !userObj.password || !userObj.role || userObj.status !== 'aktif') {
+          isCorrupted = true;
+        }
+      } catch (e) {
+        isCorrupted = true;
+      }
+      
+      if (!isCorrupted && userObj) {
+        const dbUser = db.getUsers().find(u => u.id === userObj.id);
+        if (!dbUser || dbUser.status !== 'aktif') {
+          isCorrupted = true;
+        }
+      }
+
+      if (isCorrupted) {
+        console.warn("Session rusak, lakukan auto recovery.");
+        db.logout();
+        AppState.currentUser = null;
+        AppState.currentProfile = null;
+        this.showAuth();
+        setTimeout(() => {
+          UI.toast("Sesi login telah berakhir. Silakan masuk kembali.", 'error');
+        }, 100);
+        return;
+      }
+    }
+
     const user = db.getCurrentUser();
     if (user) {
       AppState.currentUser = user;
@@ -163,7 +196,18 @@ const Auth = {
     UI.hide('page-wizard');
     UI.show('app-layout-wrapper');
     UI.updateUserUI();
-    Router.navigate(db.isAdmin(user.email) ? 'admin' : 'dashboard');
+
+    // Redirect based on role
+    if (user.role === 'admin') {
+      console.log("Redirect dashboard");
+      Router.navigate('admin');
+    } else if (user.role === 'peserta') {
+      console.log("Redirect dashboard");
+      Router.navigate('home');
+    } else {
+      console.log("Redirect dashboard");
+      Router.navigate('dashboard');
+    }
   },
 
   showWizard() {
@@ -184,21 +228,130 @@ const Auth = {
     });
   },
 
-  handleLogin(e) {
+  async handleLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
+    console.log("Login dimulai");
+
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
     const btn = document.getElementById('login-btn');
-    btn.disabled = true; btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> Masuk...';
-    const result = db.loginUser(email, password);
-    if (result.success) {
-      AppState.currentUser = result.user;
-      AppState.currentProfile = db.getProfile(result.user.id);
-      UI.toast(`Selamat datang, ${result.user.namaLengkap || 'Guru'}! 👋`, 'success');
+
+    // 1. Tunjukkan loading spinner
+    btn.disabled = true;
+    btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> Masuk...';
+
+    let isTimeout = false;
+
+    // 2. Set timeout untuk membatalkan proses jika lebih dari 10 detik
+    const loginTimeout = setTimeout(() => {
+      isTimeout = true;
+      console.error(new Error("Timeout login"));
+      btn.disabled = false;
+      btn.innerHTML = 'Masuk ke Aplikasi';
+      UI.toast("Proses login terlalu lama. Silakan coba kembali.", 'error');
+    }, 10000);
+
+    try {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      // Delay minimal 500ms agar Spinner berputar dan proses teratur
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (isTimeout) return;
+
+      // Validasi email
+      if (!email) {
+        throw new Error("Email tidak boleh kosong.");
+      }
+
+      // Validasi password
+      if (!password) {
+        throw new Error("Password tidak boleh kosong.");
+      }
+
+      // Cek koneksi database
+      await db.ensureReady();
+      if (!db.ready && !db.db) {
+        throw new Error("Koneksi database gagal.");
+      }
+
+      if (isTimeout) return;
+
+      // Cari akun berdasarkan email
+      const users = db.getUsers();
+      const user = users.find(u => u.email === email);
+      if (!user) {
+        throw new Error("Akun tidak ditemukan.");
+      }
+      console.log("Email ditemukan");
+
+      if (isTimeout) return;
+
+      // Verifikasi password
+      if (user.password !== password) {
+        throw new Error("Password salah.");
+      }
+      console.log("Password valid");
+
+      if (isTimeout) return;
+
+      // Validasi status
+      const status = user.status || (user.isActive ? 'aktif' : 'nonaktif');
+      if (status !== 'aktif') {
+        throw new Error("Akun belum aktif.");
+      }
+
+      // Cek schema fields (id, nama, email, password, role, status)
+      const nama = user.nama || user.namaLengkap || 'Guru';
+      const role = user.role || 'guru';
+      if (!user.id || !nama || !user.email || !user.password || !role || status !== 'aktif') {
+        throw new Error("Session gagal dibuat.");
+      }
+
+      const cleanUser = {
+        id: user.id,
+        nama: nama,
+        email: user.email,
+        password: user.password,
+        role: role,
+        status: status
+      };
+
+      // Buat & Simpan session
+      localStorage.setItem("auth_user", JSON.stringify(cleanUser));
+      localStorage.setItem("sgm_current_user", cleanUser.id);
+      console.log("Session berhasil dibuat");
+
+      // Verifikasi session
+      const verifySession = localStorage.getItem("auth_user");
+      if (!verifySession) {
+        throw new Error("Session gagal dibuat.");
+      }
+
+      if (isTimeout) return;
+
+      // Hentikan timeout
+      clearTimeout(loginTimeout);
+
+      // Matikan loading spinner
+      btn.disabled = false;
+      btn.innerHTML = 'Masuk ke Aplikasi';
+
+      AppState.currentUser = cleanUser;
+      AppState.currentProfile = db.getProfile(cleanUser.id);
+
+      UI.toast(`Selamat datang, ${cleanUser.nama}! 👋`, 'success');
       this.enterApp();
-    } else {
-      UI.toast(result.message, 'error');
-      btn.disabled = false; btn.innerHTML = 'Masuk ke Aplikasi';
+
+    } catch (error) {
+      clearTimeout(loginTimeout);
+      if (!isTimeout) {
+        console.error(error);
+        btn.disabled = false;
+        btn.innerHTML = 'Masuk ke Aplikasi';
+        UI.toast(error.message, 'error');
+      }
     }
   },
 
@@ -1463,6 +1616,113 @@ const Admin = {
     }
 
     this.renderUsersTable();
+    this.runDiagnostics();
+  },
+
+  async runDiagnostics() {
+    const btn = document.getElementById('btn-run-diagnostics');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> Menjalankan...';
+    }
+
+    const setStatus = (id, status, detail) => {
+      const iconEl = document.getElementById(`diag-${id}-icon`);
+      const detailEl = document.getElementById(`diag-${id}-detail`);
+      if (status === 'success') {
+        if (iconEl) iconEl.textContent = '✅';
+        if (detailEl) detailEl.innerHTML = `<span style="color:var(--success);font-weight:600">${detail}</span>`;
+      } else if (status === 'failed') {
+        if (iconEl) iconEl.textContent = '❌';
+        if (detailEl) detailEl.innerHTML = `<span style="color:var(--error);font-weight:600">Failed</span><br/><span style="font-size:0.65rem;color:var(--text-muted)">${detail}</span>`;
+      } else {
+        if (iconEl) iconEl.textContent = '⏳';
+        if (detailEl) detailEl.textContent = detail;
+      }
+    };
+
+    // 1. Database Connection Check
+    setStatus('db', 'running', 'Memeriksa database...');
+    try {
+      await db.ensureReady();
+      if (db.ready && db.db) {
+        const users = db.getUsers();
+        if (users) {
+          setStatus('db', 'success', 'Database Connected');
+        } else {
+          throw new Error('Gagal mengambil data users.');
+        }
+      } else {
+        throw new Error('Database tidak siap.');
+      }
+    } catch (e) {
+      setStatus('db', 'failed', e.message);
+    }
+
+    // 2. Auth Service Running Check
+    setStatus('auth', 'running', 'Memeriksa auth service...');
+    try {
+      if (typeof Auth !== 'undefined' && Auth.init && Auth.handleLogin && Auth.logout) {
+        setStatus('auth', 'success', 'Auth Service Running');
+      } else {
+        throw new Error('Objek Auth tidak terdefinisi dengan benar.');
+      }
+    } catch (e) {
+      setStatus('auth', 'failed', e.message);
+    }
+
+    // 3. Session Storage OK Check
+    setStatus('session', 'running', 'Memeriksa session storage...');
+    try {
+      const testKey = 'sgm_test_session_key';
+      const testVal = { test: true, timestamp: Date.now() };
+      localStorage.setItem(testKey, JSON.stringify(testVal));
+      const readVal = localStorage.getItem(testKey);
+      localStorage.removeItem(testKey);
+      if (readVal && JSON.parse(readVal).test === true) {
+        setStatus('session', 'success', 'Session Storage OK');
+      } else {
+        throw new Error('Gagal membaca/menulis session ke localStorage.');
+      }
+    } catch (e) {
+      setStatus('session', 'failed', e.message);
+    }
+
+    // 4. API Reachable Check
+    setStatus('api', 'running', 'Memeriksa koneksi API...');
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      await fetch('https://generativelanguage.googleapis.com/', { 
+        mode: 'no-cors', 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      setStatus('api', 'success', 'API Reachable');
+    } catch (e) {
+      setStatus('api', 'failed', 'Layanan API tidak dapat dijangkau. Periksa koneksi internet.');
+    }
+
+    // 5. Redirect OK Check
+    setStatus('redirect', 'running', 'Memeriksa sistem routing...');
+    try {
+      if (Router && Router.pages && Router.pages['admin'] && Router.pages['dashboard'] && Router.pages['home']) {
+        setStatus('redirect', 'success', 'Redirect OK');
+      } else {
+        const missing = [];
+        if (!Router.pages['admin']) missing.push('admin');
+        if (!Router.pages['dashboard']) missing.push('dashboard');
+        if (!Router.pages['home']) missing.push('home');
+        throw new Error(`Rute berikut hilang: ${missing.join(', ')}`);
+      }
+    } catch (e) {
+      setStatus('redirect', 'failed', e.message);
+    }
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🔄 Jalankan Diagnostik';
+    }
   },
 
   async saveApiKey() {
@@ -1521,12 +1781,12 @@ const Admin = {
         </td>
         <td>${UI.formatDate(u.createdAt)}</td>
         <td><span class="badge ${u.isActive?'badge-success':'badge-error'}">${u.isActive?'Aktif':'Nonaktif'}</span></td>
-        <td>${db.isAdmin(u.email)?'<span class="badge badge-warning">Admin</span>':'<span class="badge badge-neutral">Guru</span>'}</td>
+        <td>${u.role === 'admin'?'<span class="badge badge-warning">Admin</span>':'<span class="badge badge-neutral">Guru</span>'}</td>
         <td>
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" onclick="Admin.toggleActive('${u.id}',${u.isActive})">${u.isActive?'⏸ Nonaktif':'▶ Aktif'}</button>
             <button class="btn btn-ghost btn-sm" onclick="Admin.resetPwPrompt('${u.id}')">🔑</button>
-            ${!db.isAdmin(u.email)?`<button class="btn btn-danger btn-sm" onclick="Admin.deleteUser('${u.id}')">🗑</button>`:''}
+            ${u.role !== 'admin'?`<button class="btn btn-danger btn-sm" onclick="Admin.deleteUser('${u.id}')">🗑</button>`:''}
           </div>
         </td>
       </tr>
@@ -1589,6 +1849,7 @@ document.addEventListener('DOMContentLoaded', () => {
   Router.register('history', () => RPMHistory.render());
   Router.register('settings', () => Settings.render());
   Router.register('admin', () => Admin.render());
+  Router.register('home', () => Dashboard.render());
 
   ThemeManager.init();
   Auth.init();

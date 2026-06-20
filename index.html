@@ -688,6 +688,59 @@
             </div>
           </div>
 
+          <!-- ═══ SISTEM → DIAGNOSTIK LOGIN ═══ -->
+          <div class="card card-elevated" style="margin-bottom:1.5rem">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <h3 style="font-size:1rem;font-weight:700">⚙️ Sistem → Diagnostik Login</h3>
+                <p style="font-size:0.78rem;color:var(--text-muted)">Uji dan pantau status kesehatan sistem login aplikasi</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="Admin.runDiagnostics()" id="btn-run-diagnostics">
+                🔄 Jalankan Diagnostik
+              </button>
+            </div>
+            <div class="card-body" style="padding:1.25rem">
+              <div id="diagnostics-results" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));gap:0.75rem">
+                <!-- Awal status sebelum pengujian -->
+                <div class="stat-card" style="padding:0.75rem;border:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
+                  <div style="font-size:1.25rem" id="diag-db-icon">⚪</div>
+                  <div>
+                    <div style="font-size:0.85rem;font-weight:600" id="diag-db-text">Database Connected</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted)" id="diag-db-detail">Belum diuji</div>
+                  </div>
+                </div>
+                <div class="stat-card" style="padding:0.75rem;border:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
+                  <div style="font-size:1.25rem" id="diag-auth-icon">⚪</div>
+                  <div>
+                    <div style="font-size:0.85rem;font-weight:600" id="diag-auth-text">Auth Service Running</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted)" id="diag-auth-detail">Belum diuji</div>
+                  </div>
+                </div>
+                <div class="stat-card" style="padding:0.75rem;border:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
+                  <div style="font-size:1.25rem" id="diag-session-icon">⚪</div>
+                  <div>
+                    <div style="font-size:0.85rem;font-weight:600" id="diag-session-text">Session Storage OK</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted)" id="diag-session-detail">Belum diuji</div>
+                  </div>
+                </div>
+                <div class="stat-card" style="padding:0.75rem;border:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
+                  <div style="font-size:1.25rem" id="diag-api-icon">⚪</div>
+                  <div>
+                    <div style="font-size:0.85rem;font-weight:600" id="diag-api-text">API Reachable</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted)" id="diag-api-detail">Belum diuji</div>
+                  </div>
+                </div>
+                <div class="stat-card" style="padding:0.75rem;border:1px solid var(--border);display:flex;align-items:center;gap:0.5rem">
+                  <div style="font-size:1.25rem" id="diag-redirect-icon">⚪</div>
+                  <div>
+                    <div style="font-size:0.85rem;font-weight:600" id="diag-redirect-text">Redirect OK</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted)" id="diag-redirect-detail">Belum diuji</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- ═══ KONFIGURASI AI (ADMIN ONLY) ═══ -->
           <!-- Pengguna biasa TIDAK pernah melihat bagian ini -->
           <div class="card card-elevated" style="margin-bottom:1.5rem">

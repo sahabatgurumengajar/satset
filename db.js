@@ -15,6 +15,7 @@ class Database {
     this.ready = false;
     this.dbPromise = this.initIndexedDB();
     this.seedAdmin();
+    this.migrateUsers();
   }
 
   // ─── IndexedDB Init ───────────────────────────────────────────────────────
@@ -76,9 +77,12 @@ class Database {
     if (users.find(u => u.email === data.email)) return { success: false, message: 'Email sudah terdaftar.' };
     const newUser = {
       id: 'usr_' + Date.now() + Math.random().toString(36).substr(2, 5),
+      nama: data.nama || data.namaLengkap || '',
+      namaLengkap: data.namaLengkap || data.nama || '',
       email: data.email,
       password: data.password,
-      namaLengkap: data.namaLengkap,
+      role: this.isAdmin(data.email) ? 'admin' : (data.role || 'guru'),
+      status: 'aktif',
       createdAt: new Date().toISOString(),
       isActive: true,
       profileComplete: false,
@@ -89,20 +93,77 @@ class Database {
   }
 
   loginUser(email, password) {
+    // 1. Simulasikan cek koneksi database
+    if (!this.db && !this.ready) {
+      return { success: false, message: 'Koneksi database gagal.' };
+    }
     const users = this.getUsers();
-    const user = users.find(u => u.email === email && u.password === password);
-    if (!user) return { success: false, message: 'Email atau password salah.' };
-    if (!user.isActive) return { success: false, message: 'Akun tidak aktif. Hubungi administrator.' };
-    this.lsSet('sgm_current_user', user.id);
-    return { success: true, user };
+
+    // 2. Cari akun berdasarkan email
+    const user = users.find(u => u.email === email);
+    if (!user) {
+      return { success: false, message: 'Akun tidak ditemukan.' };
+    }
+
+    // 3. Verifikasi password
+    if (user.password !== password) {
+      return { success: false, message: 'Password salah.' };
+    }
+
+    // 4. Validasi status
+    const status = user.status || (user.isActive ? 'aktif' : 'nonaktif');
+    if (status !== 'aktif') {
+      return { success: false, message: 'Akun belum aktif.' };
+    }
+
+    // 5. Cek schema fields (id, nama, email, password, role, status)
+    const nama = user.nama || user.namaLengkap || 'Guru';
+    const role = user.role || 'guru';
+    if (!user.id || !nama || !user.email || !user.password || !role || status !== 'aktif') {
+      return { success: false, message: 'Session gagal dibuat.' };
+    }
+
+    const cleanUser = {
+      id: user.id,
+      nama: nama,
+      email: user.email,
+      password: user.password,
+      role: role,
+      status: status
+    };
+
+    // Set active session in local storage
+    this.lsSet('auth_user', cleanUser);
+    this.lsSet('sgm_current_user', cleanUser.id);
+
+    return { success: true, user: cleanUser };
   }
 
-  logout() { this.lsDel('sgm_current_user'); }
+  logout() {
+    this.lsDel('auth_user');
+    this.lsDel('sgm_current_user');
+  }
 
   getCurrentUser() {
-    const userId = this.lsGet('sgm_current_user');
-    if (!userId) return null;
-    return this.getUsers().find(u => u.id === userId) || null;
+    // Baca session dari localStorage "auth_user"
+    const user = this.lsGet('auth_user');
+    if (!user) return null;
+
+    // Validasi data session (Auto Recovery jika rusak)
+    if (!user.id || !user.nama || !user.email || !user.password || !user.role || user.status !== 'aktif') {
+      console.warn("Session rusak, lakukan auto recovery.");
+      this.logout();
+      return null;
+    }
+
+    // Pastikan user masih terdaftar dan aktif di DB lokal
+    const dbUser = this.getUsers().find(u => u.id === user.id);
+    if (!dbUser || dbUser.status !== 'aktif') {
+      this.logout();
+      return null;
+    }
+
+    return dbUser;
   }
 
   updateUser(userId, updates) {
@@ -222,35 +283,69 @@ class Database {
   // ─── Admin ───────────────────────────────────────────────────────────────
   isAdmin(email) { return email === 'adm.andrisuwandi@gmail.com'; }
   seedAdmin() {
-    const users = this.getUsers();
+    let users = this.getUsers();
     const adminEmail = 'adm.andrisuwandi@gmail.com';
-    if (!users.find(u => u.email === adminEmail)) {
-      const adminUser = {
+    let admin = users.find(u => u.email === adminEmail);
+    if (!admin) {
+      admin = {
         id: 'usr_admin',
         email: adminEmail,
         password: 'sahabatguru',
+        nama: 'Admin Sahabat Guru',
         namaLengkap: 'Admin Sahabat Guru',
+        role: 'admin',
+        status: 'aktif',
         createdAt: new Date().toISOString(),
         isActive: true,
         profileComplete: true,
       };
-      users.push(adminUser);
+      users.push(admin);
       this.saveUsers(users);
-
-      const profileKey = `sgm_profile_usr_admin`;
-      if (!this.lsGet(profileKey)) {
-        this.lsSet(profileKey, {
-          namaGuru: 'Admin Sahabat Guru',
-          namaSekolah: 'Sahabat Guru Mengajar',
-          nipGuru: '-',
-          namaKepsek: '-',
-          nipKepsek: '-',
-          faseSering: 'D',
-          kelasSering: '7',
-          mapelUtama: 'Matematika',
-          updatedAt: new Date().toISOString()
-        });
+    } else {
+      let updated = false;
+      if (!admin.nama) { admin.nama = admin.namaLengkap || 'Admin Sahabat Guru'; updated = true; }
+      if (!admin.role) { admin.role = 'admin'; updated = true; }
+      if (!admin.status) { admin.status = 'aktif'; updated = true; }
+      if (updated) {
+        this.saveUsers(users);
       }
+    }
+
+    const profileKey = `sgm_profile_usr_admin`;
+    if (!this.lsGet(profileKey)) {
+      this.lsSet(profileKey, {
+        namaGuru: 'Admin Sahabat Guru',
+        namaSekolah: 'Sahabat Guru Mengajar',
+        nipGuru: '-',
+        namaKepsek: '-',
+        nipKepsek: '-',
+        faseSering: 'D',
+        kelasSering: '7',
+        mapelUtama: 'Matematika',
+        updatedAt: new Date().toISOString()
+      });
+    }
+  }
+
+  migrateUsers() {
+    const users = this.getUsers();
+    let updated = false;
+    users.forEach(u => {
+      if (!u.nama) {
+        u.nama = u.namaLengkap || 'Guru';
+        updated = true;
+      }
+      if (!u.role) {
+        u.role = this.isAdmin(u.email) ? 'admin' : 'guru';
+        updated = true;
+      }
+      if (!u.status) {
+        u.status = u.isActive ? 'aktif' : 'nonaktif';
+        updated = true;
+      }
+    });
+    if (updated) {
+      this.saveUsers(users);
     }
   }
   getAllUsers() { return this.getUsers(); }
