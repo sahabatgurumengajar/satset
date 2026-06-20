@@ -421,7 +421,8 @@ OUTPUT FORMAT JSON (hasilkan HANYA JSON valid, tanpa teks lain sebelum/sesudah):
       const start = text.indexOf('{');
       const end = text.lastIndexOf('}');
       if (start !== -1 && end !== -1) text = text.slice(start, end + 1);
-      return JSON.parse(text);
+      const parsed = JSON.parse(text);
+      return RPMSanitizer.sanitizeObject(parsed);
     } catch (e) {
       throw new Error('Format output AI tidak valid. Silakan tekan "Generate Ulang".');
     }

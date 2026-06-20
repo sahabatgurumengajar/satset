@@ -906,3 +906,36 @@ select.form-control { cursor: pointer; }
   .generator-layout { grid-template-columns: 1fr; }
   .result-panel { box-shadow: none; border: none; }
 }
+
+/* ─── Premium Document Typography & Tables ──────────────────────────────── */
+.doc-section-body {
+  text-align: justify;
+  line-height: 1.6;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.rubrik-table tbody tr:nth-child(even) {
+  background-color: var(--primary-light);
+}
+
+.activity-table tbody tr:nth-child(even) {
+  background-color: var(--primary-light);
+}
+
+.rubrik-table th {
+  background: var(--gradient-navy) !important;
+  color: white !important;
+  font-weight: 700;
+}
+
+.activity-table th {
+  background: var(--gradient-navy) !important;
+  color: white !important;
+  font-weight: 700;
+}
+
+.rubrik-table, .activity-table {
+  border-collapse: collapse;
+  width: 100%;
+}

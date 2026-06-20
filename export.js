@@ -40,13 +40,13 @@ class ExportEngine {
     const GRAY = [100, 116, 139];
     const LIGHT = [248, 250, 252];
 
-    let y = 10;
+    let y = 12;
     const pageW = 210;
-    const margin = 18;
+    const margin = 20;
     const contentW = pageW - 2 * margin;
 
-    const addPage = () => { doc.addPage(); y = 18; };
-    const checkPage = (needed = 20) => { if (y + needed > 280) addPage(); };
+    const addPage = () => { doc.addPage(); y = 20; };
+    const checkPage = (needed = 20) => { if (y + needed > 277) addPage(); };
 
     // ── Header ──
     // Logo area
@@ -472,13 +472,32 @@ class ExportEngine {
     doc.text(`NIP. ${profile?.nipKepsek || '-'}`, margin, y);
     doc.text(`NIP. ${profile?.nipGuru || '-'}`, margin + 100, y);
 
-    // Page numbers
+    // Page numbers & Running Headers
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+
+      // Centered footer page number
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
       doc.text(`Halaman ${i} dari ${pageCount}`, pageW / 2, 290, { align: 'center' });
+
+      // Running header on pages 2+
+      if (i > 1) {
+        doc.setFontSize(7.5);
+        doc.setTextColor(...GRAY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${profile?.namaSekolah || 'Sekolah'} — Rencana Pelaksanaan Pembelajaran (RPM)`, margin, 12);
+        
+        // Truncate long materi in running header if necessary
+        const mapel = rpmDoc.formData?.mapel || '-';
+        const materi = (rpmDoc.formData?.materi || '-').slice(0, 25);
+        doc.text(`Mapel: ${mapel} | Materi: ${materi}${rpmDoc.formData?.materi?.length > 25 ? '...' : ''}`, pageW - margin, 12, { align: 'right' });
+        
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.line(margin, 14, pageW - margin, 14);
+      }
     }
 
     const filename = `RPM_${(rpmDoc.formData?.mapel || 'dokumen').replace(/\s+/g, '_')}_${(rpmDoc.formData?.materi || '').replace(/\s+/g, '_').slice(0, 30)}.pdf`;

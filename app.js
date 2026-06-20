@@ -883,10 +883,10 @@ const Generator = {
         </div>
       </div>
       <div class="result-toolbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="Generator.checkAndCleanLanguage()" title="Periksa & Rapikan Bahasa">✨ Rapikan Bahasa</button>
         <button class="btn btn-ghost btn-sm" onclick="Generator.regenerate()" title="Generate Ulang">🔄</button>
         <button class="btn btn-ghost btn-sm" onclick="RPMHistory.downloadPDF('${rpmDoc.id}')">📄 PDF</button>
         <button class="btn btn-success btn-sm" onclick="RPMHistory.downloadWord('${rpmDoc.id}')">📝 Word</button>
-        <button class="btn btn-primary btn-sm" onclick="RPMHistory.openRPM('${rpmDoc.id}')">👁️ Detail</button>
       </div>
     `;
 
@@ -920,6 +920,30 @@ const Generator = {
       AppState.isGenerating = false;
     });
   },
+
+  async checkAndCleanLanguage() {
+    const rpm = AppState.currentRPM;
+    if (!rpm || !rpm.rpmData) { UI.toast('Tidak ada dokumen RPM yang aktif.', 'warning'); return; }
+
+    UI.toast('Sedang merapikan tata bahasa dan karakter...', 'info');
+
+    // Sanitize
+    rpm.rpmData = RPMSanitizer.sanitizeObject(rpm.rpmData);
+
+    // Validate
+    const check = RPMSanitizer.validateRPMData(rpm.rpmData);
+    if (!check.valid) {
+      UI.toast(`Peringatan: ${check.issues.join(', ')}`, 'warning', 5000);
+    }
+
+    // Save to DB
+    const saved = await db.saveRPM(AppState.currentUser.id, rpm);
+    AppState.currentRPM = saved;
+
+    // Refresh display
+    this.displayResult(saved);
+    UI.toast('Dokumen berhasil dirapikan! ✨', 'success');
+  },
 };
 
 // ─── RPM Renderer ─────────────────────────────────────────────────────────
@@ -928,12 +952,88 @@ const RPMRenderer = {
     if (!data) return '<div class="empty-state"><p>Data tidak valid.</p></div>';
     return `
       <div class="rpm-document">
+        ${this.renderHeader(data, fd)}
         ${this.renderQC(data)}
         ${this.renderIdentifikasi(data)}
         ${this.renderDesain(data)}
         ${this.renderPengalaman(data, fd)}
         ${this.renderAsesmen(data)}
         ${this.renderRefleksi(data)}
+        ${this.renderSignatures(data)}
+      </div>
+    `;
+  },
+
+  renderHeader(data, fd) {
+    const profile = AppState.currentProfile || {};
+    return `
+      <div class="rpm-doc-header" style="border-bottom:2px solid var(--border);padding-bottom:1.25rem;margin-bottom:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1.25rem;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.25rem">
+          ${profile.logoBase64 ? `<img src="${profile.logoBase64}" style="width:64px;height:64px;object-fit:contain;border-radius:8px;border:1px solid var(--border);padding:2px;background:white">` : '<div style="font-size:2.5rem;width:64px;height:64px;display:flex;align-items:center;justify-content:center;background:var(--primary-light);border-radius:8px">🏫</div>'}
+          <div style="flex:1">
+            <h2 style="font-size:1.25rem;font-weight:800;color:var(--text-primary);margin:0">${UI.escHtml(profile.namaSekolah || 'NAMA SEKOLAH')}</h2>
+            <p style="font-size:0.82rem;color:var(--text-secondary);margin:2px 0 0">${UI.escHtml(profile.alamatSekolah || '')}</p>
+            ${profile.npsn ? `<p style="font-size:0.78rem;color:var(--text-muted);margin:1px 0 0">NPSN: ${UI.escHtml(profile.npsn)}</p>` : ''}
+          </div>
+        </div>
+
+        <div style="background:var(--gradient-navy);color:white;text-align:center;padding:0.625rem;font-weight:800;font-size:1rem;letter-spacing:0.04em;margin-bottom:1rem;border-radius:6px">
+          RENCANA PELAKSANAAN PEMBELAJARAN (RPM)
+        </div>
+
+        <div class="activity-table-wrapper" style="margin-bottom:0">
+          <table class="activity-table" style="font-size:0.8rem;min-width:100%">
+            <tbody>
+              <tr>
+                <td style="font-weight:700;width:20%;background:var(--bg-hover)">Nama Guru</td>
+                <td style="width:30%">${UI.escHtml(profile.namaGuru || '-')}</td>
+                <td style="font-weight:700;width:20%;background:var(--bg-hover)">Mata Pelajaran</td>
+                <td style="width:30%">${UI.escHtml(fd?.mapel || '-')}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;background:var(--bg-hover)">NIP Guru</td>
+                <td>${UI.escHtml(profile.nipGuru || '-')}</td>
+                <td style="font-weight:700;background:var(--bg-hover)">Fase / Kelas</td>
+                <td>Fase ${UI.escHtml(fd?.fase || '-')} / Kelas ${UI.escHtml(String(fd?.kelas || '-'))}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;background:var(--bg-hover)">Semester</td>
+                <td>Semester ${UI.escHtml(String(fd?.semester || '-'))}</td>
+                <td style="font-weight:700;background:var(--bg-hover)">Alokasi Waktu</td>
+                <td>${UI.escHtml(fd?.waktu || '-')}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;background:var(--bg-hover)">Nama Sekolah</td>
+                <td>${UI.escHtml(profile.namaSekolah || '-')}</td>
+                <td style="font-weight:700;background:var(--bg-hover)">Model Pembelajaran</td>
+                <td>${UI.escHtml(fd?.model || '-')}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  },
+
+  renderSignatures(data) {
+    const profile = AppState.currentProfile || {};
+    const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    return `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:1.5rem;box-shadow:var(--shadow-sm);margin-top:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem;font-size:0.85rem;color:var(--text-primary)">
+        <div>
+          <div>Mengetahui,</div>
+          <div style="font-weight:700;margin-top:0.25rem">Kepala Sekolah</div>
+          <div style="height:50px"></div>
+          <div style="font-weight:700;text-decoration:underline">${UI.escHtml(profile.namaKepsek || '________________________')}</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px">NIP. ${UI.escHtml(profile.nipKepsek || '-')}</div>
+        </div>
+        <div>
+          <div>${UI.escHtml(profile.namaKota || 'Singkawang')}, ${today}</div>
+          <div style="font-weight:700;margin-top:0.25rem">Guru Mata Pelajaran</div>
+          <div style="height:50px"></div>
+          <div style="font-weight:700;text-decoration:underline">${UI.escHtml(profile.namaGuru || '________________________')}</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px">NIP. ${UI.escHtml(profile.nipGuru || '-')}</div>
+        </div>
       </div>
     `;
   },
@@ -1170,6 +1270,19 @@ const RPMHistory = {
     try {
       const rpm = id === AppState.currentRPM?.id ? AppState.currentRPM : await db.getRPM(id);
       if (!rpm) { UI.toast('Data tidak ditemukan.', 'error'); return; }
+
+      // Sanitasi otomatis sebelum ekspor
+      rpm.rpmData = RPMSanitizer.sanitizeObject(rpm.rpmData);
+
+      // Simpan perbaikan sanitasi ke DB
+      await db.saveRPM(AppState.currentUser.id, rpm);
+
+      // Validasi struktur
+      const check = RPMSanitizer.validateRPMData(rpm.rpmData);
+      if (!check.valid) {
+        console.warn('Masalah validasi terdeteksi namun dibersihkan otomatis:', check.issues);
+      }
+
       UI.toast('Menyiapkan PDF...', 'info');
       await exportEngine.exportPDF(rpm, AppState.currentProfile);
       db.logDownload(AppState.currentUser.id, id, 'pdf');
@@ -1181,6 +1294,13 @@ const RPMHistory = {
     try {
       const rpm = id === AppState.currentRPM?.id ? AppState.currentRPM : await db.getRPM(id);
       if (!rpm) { UI.toast('Data tidak ditemukan.', 'error'); return; }
+
+      // Sanitasi otomatis sebelum ekspor
+      rpm.rpmData = RPMSanitizer.sanitizeObject(rpm.rpmData);
+
+      // Simpan perbaikan sanitasi ke DB
+      await db.saveRPM(AppState.currentUser.id, rpm);
+
       UI.toast('Menyiapkan Word...', 'info');
       await exportEngine.exportWord(rpm, AppState.currentProfile);
       db.logDownload(AppState.currentUser.id, id, 'word');

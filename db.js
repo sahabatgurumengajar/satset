@@ -288,3 +288,145 @@ class Database {
 
 // Singleton
 const db = new Database();
+
+// ─── RPMSanitizer Utility ───────────────────────────────────────────────────
+const RPMSanitizer = {
+  dictionary: new Set([
+    "pertanyaan", "pembelajaran", "kelompok", "mengevaluasi", "aktivitas", "pendahuluan",
+    "kegiatan", "pelaksanaan", "pancasila", "profil", "pelajar", "sekolah", "guru", "murid",
+    "siswa", "evaluasi", "rencana", "pelaksana", "capaian", "tujuan", "metode", "model",
+    "asesmen", "refleksi", "umpan", "balik", "remedial", "pengayaan", "materi", "waktu",
+    "semester", "kelas", "fase", "digital", "pedagogis", "kemitraan", "lingkungan",
+    "kolaborasi", "karakteristik", "kompleksitas", "mengorganisasi", "orientasi", "investigasi",
+    "menyajikan", "karya", "menganalisis", "pemecahan", "masalah", "penentuan", "jadwal",
+    "memonitor", "menguji", "menghubungkan", "karakter", "tindak", "lanjut", "keluarga",
+    "pelibatan", "interaktif", "diskusi", "pemantik", "autentik", "indikator",
+    "kriteria", "rubrik", "bobot", "sumatif", "formatif", "diagnostik", "penugasan", "presentasi",
+    "saintifik", "pendekatan", "sains", "teknologi", "teknik", "matematika", "seni", "kreativitas",
+    "kemampuan", "ilmiah", "hipotesis", "kesimpulan", "kooperatif", "tujuan", "motivasi",
+    "kelompok", "heterogen", "penghargaan", "sistematis", "solusi", "implementasi", "terbalik",
+    "mandiri", "pendalaman", "strategi", "pasangan", "berbagi", "penelitian", "pengalaman",
+    "konkret", "observasi", "abstrak", "konseptualisasi", "eksperimentasi", "daring", "tatap",
+    "muka", "sinkron", "praktik", "konsolidasi", "laporan", "proses", "hasil"
+  ]),
+
+  commonSplits: {
+    "pert anyaan": "pertanyaan",
+    "pe rtanyaan": "pertanyaan",
+    "kelo mpok": "kelompok",
+    "mengevalu asi": "mengevaluasi",
+    "pembel ajaran": "pembelajaran",
+    "aktiv itas": "aktivitas",
+    "pendah uluan": "pendahuluan",
+    "keg iatan": "kegiatan",
+    "eval uasi": "evaluasi",
+    "karakter istik": "karakteristik",
+    "inves tigasi": "investigasi",
+    "mengan alisis": "menganalisis",
+    "pemec ahan": "pemecahan",
+    "penc apaian": "pencapaian",
+    "indik ator": "indikator",
+    "aut entik": "autentik",
+    "diag nostik": "diagnostik",
+    "form atif": "formatif",
+    "sum atif": "sumatif",
+    "kooper atif": "kooperatif",
+    "kolabo rasi": "kolaborasi",
+    "pedagog is": "pedagogis",
+    "lingk ungan": "lingkungan"
+  },
+
+  sanitizeText(str) {
+    if (typeof str !== 'string') return str;
+
+    // 1. Pembersihan karakter rusak
+    let result = str
+      .replace(/%¶/g, ' • ')
+      .replace(/¶/g, ' ')
+      .replace(//g, '')
+      .replace(/[\uFFFD\uE000-\uF8FF]/g, '');
+
+    // 2. Perbaiki spasi ganda
+    result = result.replace(/\s+/g, ' ');
+
+    // 3. Gabungkan kata yang terpotong (common splits)
+    for (const [split, merged] of Object.entries(this.commonSplits)) {
+      const regex = new RegExp(split.replace(/ /g, '\\s+'), 'gi');
+      result = result.replace(regex, merged);
+    }
+
+    // 4. Gabungkan kata terpotong berdasarkan kamus (rule-based)
+    result = result.replace(/\b([a-zA-Z]{2,})\s+([a-zA-Z]{2,})\b/g, (match, w1, w2) => {
+      const combined = (w1 + w2).toLowerCase();
+      if (this.dictionary.has(combined)) {
+        const isUpper = w1[0] === w1[0].toUpperCase();
+        return isUpper ? combined[0].toUpperCase() + combined.slice(1) : combined;
+      }
+      return match;
+    });
+
+    // 5. Perbaiki spasi di sekitar tanda baca (contoh: "halo , dunia ." -> "halo, dunia.")
+    result = result
+      .replace(/\s+([.,;:?!])/g, '$1') // hapus spasi sebelum tanda baca
+      .replace(/([.,;:?!])([a-zA-Z])/g, '$1 $2'); // tambahkan spasi setelah tanda baca jika menempel ke huruf
+
+    // 6. Rapikan kapitalisasi awal kalimat
+    result = result.replace(/(^\s*|[.!?]\s+)([a-z])/g, (match, separator, char) => {
+      return separator + char.toUpperCase();
+    });
+
+    // 7. Rapikan bullet points jika ada di dalam teks
+    result = result.replace(/•\s*/g, '• ');
+
+    return result.trim();
+  },
+
+  sanitizeObject(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'string') {
+      return this.sanitizeText(obj);
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeObject(item));
+    }
+    if (typeof obj === 'object') {
+      const newObj = {};
+      for (const key in obj) {
+        newObj[key] = this.sanitizeObject(obj[key]);
+      }
+      return newObj;
+    }
+    return obj;
+  },
+
+  validateRPMData(rpmData) {
+    const issues = [];
+    if (!rpmData) {
+      issues.push("Data RPM kosong.");
+      return { valid: false, issues };
+    }
+
+    // Check sections
+    if (!rpmData.identifikasi) issues.push("Bagian A (Identifikasi) kosong.");
+    if (!rpmData.desainPembelajaran) issues.push("Bagian B (Desain Pembelajaran) kosong.");
+    if (!rpmData.pengalamanBelajar) issues.push("Bagian C (Pengalaman Belajar) kosong.");
+    if (!rpmData.asesmen) issues.push("Bagian D (Asesmen) kosong.");
+    if (!rpmData.refleksi) issues.push("Bagian E (Refleksi) kosong.");
+
+    // Check empty columns in tables
+    if (rpmData.pengalamanBelajar?.pendahuluan?.some(a => !a.aktivitasGuru || !a.aktivitasMurid)) {
+      issues.push("Ada kolom kosong pada tabel Pendahuluan.");
+    }
+    if (rpmData.pengalamanBelajar?.inti?.some(a => !a.aktivitasGuru || !a.aktivitasMurid)) {
+      issues.push("Ada kolom kosong pada tabel Kegiatan Inti.");
+    }
+    if (rpmData.pengalamanBelajar?.penutup?.some(a => !a.aktivitasGuru || !a.aktivitasMurid)) {
+      issues.push("Ada kolom kosong pada tabel Penutup.");
+    }
+
+    return {
+      valid: issues.length === 0,
+      issues
+    };
+  }
+};
