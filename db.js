@@ -13,7 +13,7 @@ class Database {
   constructor() {
     this.db = null;
     this.ready = false;
-    this.initIndexedDB();
+    this.dbPromise = this.initIndexedDB();
     this.seedAdmin();
   }
 
@@ -43,8 +43,7 @@ class Database {
   }
 
   async ensureReady() {
-    if (this.ready) return;
-    await this.initIndexedDB();
+    await this.dbPromise;
   }
 
   // ─── LocalStorage Helpers ────────────────────────────────────────────────
