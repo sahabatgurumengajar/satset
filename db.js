@@ -437,7 +437,6 @@ const RPMSanitizer = {
     let result = str
       .replace(/%¶/g, ' • ')
       .replace(/¶/g, ' ')
-      .replace(//g, '')
       .replace(/[\uFFFD\uE000-\uF8FF]/g, '');
 
     // 2. Perbaiki spasi ganda
